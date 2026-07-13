@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AIOPS // OPERATOR TRAINING</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0B0E14;
+    --panel: #12161F;
+    --panel-2: #161B26;
+    --grid: #1E2530;
+    --grid-soft: #191F2A;
+    --text: #E6EDF3;
+    --muted: #7D8998;
+    --dim: #4B5563;
+    --ok: #3FB950;
+    --ok-soft: rgba(63,185,80,0.12);
+    --warn: #D29922;
+    --warn-soft: rgba(210,153,34,0.12);
+    --crit: #F85149;
+    --ai: #8A7CFF;
+    --ai-soft: rgba(138,124,255,0.14);
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Inter', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse 1200px 600px at 15% -10%, rgba(138,124,255,0.06), transparent 60%),
+      radial-gradient(ellipse 900px 500px at 100% 0%, rgba(63,185,80,0.05), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px;}
+
+  /* ---------- HEADER / CONSOLE BAR ---------- */
+  .console{
+    border:1px solid var(--grid);
+    border-radius:10px;
+    background:linear-gradient(180deg, var(--panel), var(--panel-2));
+    padding:20px 24px;
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:space-between;
+    align-items:center;
+    gap:20px;
+    position:relative;
+    overflow:hidden;
+  }
+  .console::before{
+    content:"";
+    position:absolute; inset:0;
+    background-image:linear-gradient(var(--grid-soft) 1px, transparent 1px), linear-gradient(90deg, var(--grid-soft) 1px, transparent 1px);
+    background-size:26px 26px;
+    opacity:0.35;
+    mask-image:linear-gradient(180deg, black, transparent 85%);
+    pointer-events:none;
+  }
+  .console-left{position:relative; z-index:1;}
+  .eyebrow{
+    font-family:var(--mono); font-size:11px; letter-spacing:0.18em;
+    color:var(--ok); text-transform:uppercase; display:flex; align-items:center; gap:8px;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(63,185,80,0.6);animation:pulse 2s infinite;}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(63,185,80,0.55);}
+    70%{box-shadow:0 0 0 8px rgba(63,185,80,0);}
+    100%{box-shadow:0 0 0 0 rgba(63,185,80,0);}
+  }
+  h1{
+    font-family:var(--mono); font-weight:800; font-size:clamp(22px,3vw,30px);
+    margin:8px 0 4px; letter-spacing:-0.01em;
+  }
+  h1 span{color:var(--ai);}
+  .sub{color:var(--muted); font-size:14px; max-width:520px; line-height:1.5;}
+
+  .console-right{position:relative; z-index:1; display:flex; gap:28px; align-items:center;}
+  .metric{text-align:right;}
+  .metric .label{font-family:var(--mono); font-size:10px; color:var(--muted); letter-spacing:0.12em; text-transform:uppercase;}
+  .metric .val{font-family:var(--mono); font-size:26px; font-weight:700; color:var(--text);}
+  .metric .val small{font-size:13px; color:var(--muted); font-weight:500;}
+
+  .ring{position:relative; width:64px; height:64px;}
+  .ring svg{transform:rotate(-90deg);}
+  .ring-bg{fill:none; stroke:var(--grid); stroke-width:6;}
+  .ring-fg{fill:none; stroke:var(--ok); stroke-width:6; stroke-linecap:round; transition:stroke-dashoffset 0.4s ease;}
+  .ring-label{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:13px; font-weight:700;}
+
+  /* ---------- TOPOLOGY MAP ---------- */
+  .section-title{
+    font-family:var(--mono); font-size:12px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--muted); margin:44px 0 14px; display:flex; align-items:center; gap:10px;
+  }
+  .section-title::after{content:""; height:1px; flex:1; background:var(--grid);}
+
+  .topo{
+    border:1px solid var(--grid); border-radius:10px; background:var(--panel);
+    padding:10px 6px 4px; overflow-x:auto;
+  }
+  .topo svg{display:block; min-width:960px; width:100%; height:auto;}
+  .node-box{fill:var(--panel-2); stroke:var(--grid); stroke-width:1.5; rx:8;}
+  .node-box.active{stroke:var(--ok); fill:var(--ok-soft);}
+  .node-box.ai{stroke:var(--ai); fill:var(--ai-soft);}
+  .node-label{font-family:var(--mono); font-size:11px; fill:var(--text); font-weight:700;}
+  .node-sub{font-family:var(--mono); font-size:9px; fill:var(--muted);}
+  .edge{stroke:var(--grid); stroke-width:1.5; fill:none;}
+  .edge-flow{stroke:var(--ok); stroke-width:1.5; fill:none; stroke-dasharray:4 6; animation:flow 1.4s linear infinite;}
+  @keyframes flow{ to { stroke-dashoffset:-20; } }
+
+  /* ---------- WEEK GRID ---------- */
+  .weeks{display:grid; grid-template-columns:repeat(auto-fill, minmax(270px,1fr)); gap:14px;}
+  .week{
+    border:1px solid var(--grid); border-radius:10px; background:var(--panel);
+    padding:16px 18px; cursor:pointer; transition:border-color .15s ease, transform .15s ease;
+    position:relative;
+  }
+  .week:hover{border-color:var(--dim); transform:translateY(-1px);}
+  .week.open{border-color:var(--ok);}
+  .week-top{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
+  .week-tag{font-family:var(--mono); font-size:10px; color:var(--ok); letter-spacing:0.1em;}
+  .week-tag.ai{color:var(--ai);}
+  .week-title{font-weight:700; font-size:15px; margin:6px 0 4px;}
+  .week-goal{color:var(--muted); font-size:12.5px; line-height:1.5;}
+  .week-progress-bar{height:4px; background:var(--grid); border-radius:2px; margin-top:12px; overflow:hidden;}
+  .week-progress-fill{height:100%; background:var(--ok); width:0%; transition:width .3s ease;}
+  .week-progress-fill.ai{background:var(--ai);}
+  .week-count{font-family:var(--mono); font-size:10.5px; color:var(--muted); margin-top:6px;}
+  .chevron{font-family:var(--mono); color:var(--dim); font-size:14px; transition:transform .2s ease;}
+  .week.open .chevron{transform:rotate(90deg); color:var(--ok);}
+
+  .week-detail{
+    max-height:0; overflow:hidden; transition:max-height .3s ease;
+  }
+  .week.open .week-detail{max-height:900px;}
+  .day-row{
+    display:flex; align-items:flex-start; gap:10px; padding:9px 0;
+    border-top:1px solid var(--grid-soft); font-size:13px;
+  }
+  .day-row:first-child{border-top:1px solid var(--grid); margin-top:14px;}
+  .checkbox{
+    width:16px; height:16px; border-radius:4px; border:1.5px solid var(--dim);
+    flex-shrink:0; margin-top:1px; display:flex; align-items:center; justify-content:center;
+    font-size:11px; color:var(--bg); font-weight:700; transition:all .15s ease;
+  }
+  .checkbox.checked{background:var(--ok); border-color:var(--ok);}
+  .checkbox.checked.ai{background:var(--ai); border-color:var(--ai);}
+  .day-num{font-family:var(--mono); color:var(--muted); font-size:11px; min-width:34px;}
+  .day-topic{color:var(--text); line-height:1.45;}
+  .day-topic b{font-weight:600;}
+  .day-task{color:var(--muted); font-size:12px; display:block; margin-top:1px;}
+  .day-row.done .day-topic{color:var(--muted); text-decoration:line-through; text-decoration-color:var(--grid);}
+
+  .project-chip{
+    margin-top:14px; padding:10px 12px; background:var(--grid-soft); border:1px solid var(--grid);
+    border-radius:7px; font-size:12px; color:var(--muted);
+  }
+  .project-chip b{color:var(--text); font-family:var(--mono); font-size:11px; letter-spacing:0.03em;}
+
+  /* ---------- FOOTER ---------- */
+  .footer{
+    margin-top:50px; display:flex; justify-content:space-between; align-items:center;
+    flex-wrap:wrap; gap:12px; color:var(--dim); font-family:var(--mono); font-size:11px;
+    border-top:1px solid var(--grid); padding-top:16px;
+  }
+  .legend{display:flex; gap:16px; flex-wrap:wrap;}
+  .legend-item{display:flex; align-items:center; gap:6px;}
+  .legend-dot{width:8px;height:8px;border-radius:2px;}
+
+  @media (max-width:640px){
+    .console{flex-direction:column; align-items:flex-start;}
+    .console-right{width:100%; justify-content:space-between;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="console">
+    <div class="console-left">
+      <div class="eyebrow"><span class="dot"></span> SYSTEM STATUS — TRAINING PIPELINE LIVE</div>
+      <h1>AIOPS<span>//</span>OPERATOR TRAINING</h1>
+      <div class="sub">8-week path from zero to production AIOps engineer. Every node below is a real dependency — check off tasks as you complete them and watch the pipeline light up.</div>
+    </div>
+    <div class="console-right">
+      <div class="metric">
+        <div class="label">Days Logged</div>
+        <div class="val" id="daysVal">0<small>/56</small></div>
+      </div>
+      <div class="metric">
+        <div class="label">Weeks Active</div>
+        <div class="val" id="weeksVal">0<small>/8</small></div>
+      </div>
+      <div class="ring">
+        <svg width="64" height="64" viewBox="0 0 64 64">
+          <circle class="ring-bg" cx="32" cy="32" r="27"></circle>
+          <circle class="ring-fg" id="ringFg" cx="32" cy="32" r="27" stroke-dasharray="169.6" stroke-dashoffset="169.6"></circle>
+        </svg>
+        <div class="ring-label" id="ringLabel">0%</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">Pipeline Topology</div>
+  <div class="topo">
+    <svg viewBox="0 0 960 300" id="topoSvg">
+      <!-- edges (drawn first, under nodes) -->
+      <path class="edge" id="e12" d="M 110 60 L 230 60"/>
+      <path class="edge" id="e23" d="M 350 60 L 470 60"/>
+      <path class="edge" id="e34" d="M 590 60 L 710 60"/>
+      <path class="edge" id="e45" d="M 830 80 C 880 110, 880 150, 830 180"/>
+      <path class="edge" id="e56" d="M 710 210 L 590 210"/>
+      <path class="edge" id="e67" d="M 470 210 L 350 210"/>
+      <path class="edge" id="e78" d="M 230 210 L 130 175"/>
+      <path class="edge" id="e18" d="M 70 90 C 30 130, 30 160, 90 180"/>
+
+      <!-- WEEK NODES -->
+      <g id="node1">
+        <rect class="node-box" x="10" y="35" width="100" height="50" rx="8"/>
+        <text class="node-label" x="22" y="55">WK 1</text>
+        <text class="node-sub" x="22" y="70">Linux/Net/Shell</text>
+      </g>
+      <g id="node2">
+        <rect class="node-box" x="230" y="35" width="120" height="50" rx="8"/>
+        <text class="node-label" x="242" y="55">WK 2</text>
+        <text class="node-sub" x="242" y="70">Python/Git/DevOps</text>
+      </g>
+      <g id="node3">
+        <rect class="node-box" x="470" y="35" width="120" height="50" rx="8"/>
+        <text class="node-label" x="482" y="55">WK 3</text>
+        <text class="node-sub" x="482" y="70">Docker/K8s</text>
+      </g>
+      <g id="node4">
+        <rect class="node-box" x="710" y="35" width="120" height="50" rx="8"/>
+        <text class="node-label" x="722" y="55">WK 4</text>
+        <text class="node-sub" x="722" y="70">CI/CD/Cloud/IaC</text>
+      </g>
+      <g id="node5">
+        <rect class="node-box" x="710" y="185" width="120" height="50" rx="8"/>
+        <text class="node-label" x="722" y="205">WK 5</text>
+        <text class="node-sub" x="722" y="220">Prometheus</text>
+      </g>
+      <g id="node6">
+        <rect class="node-box" x="470" y="185" width="120" height="50" rx="8"/>
+        <text class="node-label" x="482" y="205">WK 6</text>
+        <text class="node-sub" x="482" y="220">Grafana/ELK/SRE</text>
+      </g>
+      <g id="node7">
+        <rect class="node-box ai" x="230" y="185" width="120" height="50" rx="8"/>
+        <text class="node-label" x="242" y="205">WK 7</text>
+        <text class="node-sub" x="242" y="220">ML/Anomaly/RCA</text>
+      </g>
+      <g id="node8">
+        <rect class="node-box ai" x="70" y="155" width="120" height="50" rx="8"/>
+        <text class="node-label" x="82" y="175">WK 8</text>
+        <text class="node-sub" x="82" y="190">GenAIOps/Capstone</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="section-title">Weekly Modules</div>
+  <div class="weeks" id="weeksContainer"></div>
+
+  <div class="footer">
+    <div class="legend">
+      <div class="legend-item"><span class="legend-dot" style="background:var(--ok)"></span> Ops layer</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--ai)"></span> AI/Intelligence layer</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--grid)"></span> Locked / pending</div>
+    </div>
+    <div>PROGRESS RESETS ON RELOAD — SCREENSHOT WEEKLY IF YOU WANT A RECORD</div>
+  </div>
+
+</div>
+
+<script>
+const DATA = [
+  { tag:"WEEK 01", ai:false, title:"Linux, Networking & Shell", goal:"Comfortably navigate Linux, understand networking basics, automate with shell scripts.",
+    project:"Server Health Check Script — CPU/mem/disk/service checks, alert via email",
+    days:[
+      ["Linux fundamentals","Filesystem, permissions, processes — set up VM, chmod/chown lab"],
+      ["Package mgmt & systemd","Install/manage services, write a systemd unit file"],
+      ["Networking basics","TCP/IP, DNS, HTTP — curl, dig, ss, trace a request"],
+      ["Networking deep dive","Ports, firewalls, load balancers — configure ufw + nginx LB"],
+      ["Shell scripting fundamentals","Variables, loops, conditionals — log-cleanup script"],
+      ["Shell scripting advanced","Functions, cron, error handling — cron backup script"],
+      ["Weekly project ship","Server Health Check Script — push to GitHub"]
+    ]},
+  { tag:"WEEK 02", ai:false, title:"Python, Git & DevOps Fundamentals", goal:"Write Python automation, use Git/GitHub professionally, understand the DevOps lifecycle.",
+    project:"Log Parser + Alert Bot (Python) — shipped with README",
+    days:[
+      ["Python basics","Syntax, data structures — parse a log file"],
+      ["Python intermediate","Functions, OOP, error handling — CLI tool with argparse"],
+      ["Python for automation","requests, subprocess, APIs — call a REST API"],
+      ["Git fundamentals","Commits, branches, merges — practice branching workflow"],
+      ["GitHub collaboration","PRs, Actions basics — open a PR, basic Action"],
+      ["DevOps fundamentals","Culture, lifecycle, tooling — map a sample SDLC"],
+      ["Weekly project ship","Log Parser + Alert Bot — push to GitHub"]
+    ]},
+  { tag:"WEEK 03", ai:false, title:"Docker & Kubernetes", goal:"Containerize an app and deploy it on Kubernetes.",
+    project:"Containerized Microservice on K8s — manifests on GitHub",
+    days:[
+      ["Docker fundamentals","Images, containers, Dockerfile — containerize the Wk2 app"],
+      ["Docker networking & Compose","Volumes, multi-container app with docker-compose"],
+      ["Kubernetes fundamentals","Pods, deployments, services — deploy on Minikube/Kind"],
+      ["ConfigMaps & Secrets","Namespaces — externalize app config"],
+      ["Scaling & health checks","HPA, liveness/readiness probes, rolling updates"],
+      ["K8s architecture internals","Control plane, etcd, kubelet — diagram + break/fix lab"],
+      ["Weekly project ship","Containerized Microservice on K8s"]
+    ]},
+  { tag:"WEEK 04", ai:false, title:"CI/CD, Cloud, Terraform & Ansible", goal:"Automate build-test-deploy pipelines and provision cloud infra as code.",
+    project:"Fully Automated CI/CD → Cloud Deploy pipeline",
+    days:[
+      ["CI/CD concepts","GitHub Actions pipeline — build/test/push for K8s app"],
+      ["Cloud fundamentals","AWS/Azure/GCP core services — launch free-tier VM + bucket"],
+      ["Cloud networking","VPC, subnets, security groups — design a 2-tier VPC"],
+      ["Terraform fundamentals","Providers, state, resources — provision VM via Terraform"],
+      ["Terraform modules","Remote state — modularize infra code"],
+      ["Ansible fundamentals","Playbooks, inventories, roles — automate app deployment"],
+      ["Weekly project ship","Terraform + Ansible + GitHub Actions pipeline"]
+    ]},
+  { tag:"WEEK 05", ai:false, title:"Monitoring, Logging & Prometheus", goal:"Instrument systems and understand the three pillars of observability.",
+    project:"Metrics Pipeline for K8s App — Prometheus + Alertmanager",
+    days:[
+      ["Monitoring vs observability","Metrics, logging, tracing — conceptual map + examples"],
+      ["Prometheus fundamentals","Metrics, PromQL — instrument app with /metrics endpoint"],
+      ["Prometheus architecture","Exporters, service discovery — deploy node_exporter"],
+      ["Alertmanager","Rules, routing, silencing — alerting rules for CPU/latency"],
+      ["OpenTelemetry fundamentals","Instrument app with OTel SDK"],
+      ["eBPF observability (intro)","Explore bpftrace/Pixie demo"],
+      ["Weekly project ship","Metrics Pipeline on the Wk3 app"]
+    ]},
+  { tag:"WEEK 06", ai:false, title:"Grafana, ELK, SRE & Incident Mgmt", goal:"Build dashboards, centralize logs, and run incidents like an SRE.",
+    project:"Full Observability Stack — Prometheus + Grafana + ELK unified",
+    days:[
+      ["Grafana fundamentals","Data sources, panels — build a dashboard"],
+      ["Grafana advanced","Alerting, variables, dashboards-as-code"],
+      ["ELK/OpenSearch fundamentals","Ship container logs to ELK"],
+      ["Log querying","Logstash/Grok, Kibana — build a log dashboard"],
+      ["SRE fundamentals","SLIs, SLOs, error budgets — define SLOs for the app"],
+      ["Incident management","On-call, runbooks — write runbook + blameless postmortem"],
+      ["Weekly project ship","Full Observability Stack"]
+    ]},
+  { tag:"WEEK 07", ai:true, title:"AI/ML, Anomaly Detection & RCA", goal:"Apply ML to operational data — the core of AIOps.",
+    project:"AI Anomaly Detector for Metrics — Python/ML service on Prometheus data",
+    days:[
+      ["AI/ML fundamentals","Supervised/unsupervised, model lifecycle — train a classifier"],
+      ["Time-series analysis","Trends, seasonality, stationarity — analyze CPU metrics"],
+      ["Data preprocessing","Clean + feature-engineer a metrics dataset"],
+      ["Anomaly detection","Z-score, Isolation Forest, Prophet — detect anomalies live"],
+      ["Event correlation","Noise reduction — correlate multi-service alerts into one incident"],
+      ["Root Cause Analysis","ML + causal graphs — build a simple RCA pipeline"],
+      ["Weekly project ship","AI Anomaly Detector for Metrics"]
+    ]},
+  { tag:"WEEK 08", ai:true, title:"GenAIOps, Agentic AI & Capstone", goal:"Apply LLMs/agents to ops workflows and ship the full end-to-end platform.",
+    project:"Capstone — End-to-End Self-Healing AIOps Platform, full demo + docs",
+    days:[
+      ["MLOps fundamentals","Versioning, retraining, monitoring — MLflow pipeline"],
+      ["GenAIOps & RAG","LLMs for IT ops — build a RAG bot over runbooks"],
+      ["AI Agents for ops","Build an agent that queries metrics + suggests fixes"],
+      ["AI copilots & auto-remediation","Wire agent to trigger a safe remediation action"],
+      ["Security & FinOps basics","Cost + security review of your stack"],
+      ["Capstone build day","Integrate monitoring + AI + remediation"],
+      ["Capstone ship","End-to-End Self-Healing AIOps Platform — demo + docs"]
+    ]}
+];
+
+const container = document.getElementById('weeksContainer');
+let state = DATA.map(w => w.days.map(() => false));
+
+function render(){
+  container.innerHTML = '';
+  DATA.forEach((w, wi) => {
+    const el = document.createElement('div');
+    el.className = 'week';
+    el.dataset.open = 'false';
+
+    const doneCount = state[wi].filter(Boolean).length;
+    const pct = Math.round((doneCount / w.days.length) * 100);
+
+    el.innerHTML = `
+      <div class="week-top">
+        <div>
+          <div class="week-tag ${w.ai ? 'ai' : ''}">${w.tag}</div>
+          <div class="week-title">${w.title}</div>
+        </div>
+        <div class="chevron">›</div>
+      </div>
+      <div class="week-goal">${w.goal}</div>
+      <div class="week-progress-bar"><div class="week-progress-fill ${w.ai ? 'ai' : ''}" style="width:${pct}%"></div></div>
+      <div class="week-count">${doneCount}/${w.days.length} DAYS LOGGED</div>
+      <div class="week-detail">
+        ${w.days.map((d, di) => `
+          <div class="day-row ${state[wi][di] ? 'done' : ''}" data-wi="${wi}" data-di="${di}">
+            <div class="checkbox ${state[wi][di] ? 'checked' : ''} ${w.ai ? 'ai' : ''}">${state[wi][di] ? '✓' : ''}</div>
+            <div>
+              <div class="day-num">DAY ${di+1}</div>
+              <div class="day-topic"><b>${d[0]}</b><span class="day-task">${d[1]}</span></div>
+            </div>
+          </div>
+        `).join('')}
+        <div class="project-chip"><b>SHIPS THIS WEEK →</b><br/>${w.project}</div>
+      </div>
+    `;
+
+    el.addEventListener('click', (e) => {
+      const row = e.target.closest('.day-row');
+      if(row){
+        e.stopPropagation();
+        const wi2 = +row.dataset.wi, di2 = +row.dataset.di;
+        state[wi2][di2] = !state[wi2][di2];
+        render();
+        return;
+      }
+      const isOpen = el.dataset.open === 'true';
+      document.querySelectorAll('.week').forEach(x => { x.classList.remove('open'); x.dataset.open='false'; });
+      if(!isOpen){ el.classList.add('open'); el.dataset.open='true'; }
+    });
+
+    container.appendChild(el);
+  });
+
+  updateHeader();
+  updateTopo();
+}
+
+function updateHeader(){
+  const totalDays = DATA.reduce((a,w) => a + w.days.length, 0);
+  const doneDays = state.reduce((a,arr) => a + arr.filter(Boolean).length, 0);
+  const weeksActive = state.filter(arr => arr.some(Boolean)).length;
+  const pct = Math.round((doneDays/totalDays)*100);
+
+  document.getElementById('daysVal').innerHTML = `${doneDays}<small>/${totalDays}</small>`;
+  document.getElementById('weeksVal').innerHTML = `${weeksActive}<small>/8</small>`;
+  document.getElementById('ringLabel').textContent = pct + '%';
+
+  const circumference = 169.6;
+  const offset = circumference - (pct/100)*circumference;
+  document.getElementById('ringFg').style.strokeDashoffset = offset;
+}
+
+function updateTopo(){
+  DATA.forEach((w, wi) => {
+    const node = document.getElementById('node' + (wi+1));
+    const box = node.querySelector('.node-box');
+    const complete = state[wi].every(Boolean);
+    box.classList.toggle('active', complete && !w.ai);
+    if(w.ai){ box.classList.add('ai'); if(complete) box.classList.add('active'); }
+  });
+  const edgeIds = ['e12','e23','e34','e45','e56','e67','e78','e18'];
+  edgeIds.forEach((id, i) => {
+    const complete = state[i] && state[i].every(Boolean);
+    document.getElementById(id).setAttribute('class', complete ? 'edge-flow' : 'edge');
+  });
+}
+
+render();
+</script>
+</body>
+</html>
